@@ -1,7 +1,10 @@
-import pyttsx3
+from gtts import gTTS
+import os
 
-engine = pyttsx3.init()
-engine.setProperty('rate', 150)
+text = "Testing voice. Hello Daksh!"
+tts = gTTS(text=text, lang='en', tld='co.in')  # Indian accent
 
-engine.say("Hello, this is a test of the voice system.")
-engine.runAndWait()
+tts.save("test_audio.mp3")
+print("✅ Audio saved as test_audio.mp3")
+
+os.system("start test_audio.mp3")
