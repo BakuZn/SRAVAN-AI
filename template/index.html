@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRAVAN AI™</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>SRAVAN AI™</h1>
+        <p>आपकी मदद के लिए आवाज़ आधारित सहायक</p>
+        <p>Voice Assistant for Your Needs</p>
+        <div class="button-group">
+            <button onclick="startVoiceQuery()">सरकारी योजनाओं के बारे में पूछें<br>Ask About Government Schemes</button>
+            <div class="upload-section">
+                <label for="prescription">प्रिस्क्रिप्शन अपलोड करें<br>Upload Prescription</label>
+                <input type="file" id="prescription" accept="image/*">
+                <button onclick="uploadPrescription()">प्रिस्क्रिप्शन पढ़ें<br>Read Prescription</button>
+            </div>
+            <button onclick="setReminder()">दवा का रिमाइंडर सेट करें<br>Set Medicine Reminder</button>
+        </div>
+        <div id="status" class="status">Status: Ready</div>
+        <div id="recordingStatus" style="display:none;">Recording... Speak now</div>
+    </div>
+
+    <script>
+        // Speech synthesis (text-to-speech)
+        function speak(text, lang = 'hi') {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
+            speechSynthesis.speak(utterance);
+        }
+
+        // Speech recognition (speech-to-text)
+        function startVoiceQuery() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                speak("Your browser doesn't support speech recognition", 'en');
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'hi-IN'; // Hindi by default
+            recognition.interimResults = false;
+            
+            document.getElementById('recordingStatus').style.display = 'block';
+            speak("बोलिए, आप क्या जानना चाहते हैं?", 'hi');
+            
+            recognition.start();
+
+            recognition.onresult = async (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('recordingStatus').style.display = 'none';
+                document.getElementById('status').innerText = `Query: ${transcript}`;
+                
+                // Process the query
+                speak("आपका प्रश्न संसाधित हो रहा है", 'hi');
+                const response = await processVoiceQuery(transcript);
+                
+                // Speak the response
+                speak(response, 'hi');
+                document.getElementById('status').innerText = `Response: ${response}`;
+            };
+
+            recognition.onerror = (event) => {
+                document.getElementById('recordingStatus').style.display = 'none';
+                speak("आवाज़ पहचानने में त्रुटि हुई। कृपया पुनः प्रयास करें", 'hi');
+                console.error('Speech recognition error', event.error);
+            };
+        }
+
+        async function processVoiceQuery(query) {
+            try {
+                const response = await fetch('/voice_query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `query=${encodeURIComponent(query)}`
+                });
+                
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                return data.message || "कोई उत्तर नहीं मिला";
+            } catch (error) {
+                console.error('Error:', error);
+                return "त्रुटि हुई। कृपया पुनः प्रयास करें";
+            }
+        }
+
+        // Original functions for other features
+        async function uploadPrescription() {
+            const fileInput = document.getElementById('prescription');
+            if (!fileInput.files[0]) {
+                speak('कृपया एक फ़ाइल चुनें।', 'hi');
+                return;
+            }
+            
+            speak('प्रिस्क्रिप्शन अपलोड हो रहा है।', 'hi');
+            try {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                
+                const response = await fetch('/upload_prescription', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                speak(data.message, 'hi');
+                document.getElementById('status').innerText = data.message;
+            } catch (error) {
+                console.error('Error:', error);
+                speak('अपलोड में त्रुटि हुई। कृपया पुनः प्रयास करें।', 'hi');
+            }
+        }
+
+        async function setReminder() {
+            speak('दवा का रिमाइंडर सेट किया जा रहा है।', 'hi');
+            try {
+                const response = await fetch('/set_reminder', { method: 'POST' });
+                const data = await response.json();
+                speak(data.message, 'hi');
+                document.getElementById('status').innerText = data.message;
+            } catch (error) {
+                console.error('Error:', error);
+                speak('रिमाइंडर सेट करने में त्रुटि हुई।', 'hi');
+            }
+        }
+
+        // Initial welcome message
+        window.onload = function() {
+            speak('स्वागत है SRAVAN AI में। बटन दबाकर मदद लें।', 'hi');
+            speak('Welcome to SRAVAN AI. Press a button for assistance.', 'en');
+        };
+    </script>
+</body>
+</html>
